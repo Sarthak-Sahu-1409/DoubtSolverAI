@@ -1,12 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import { BookOpen, Layers, UserCheck } from 'lucide-react';
 import { DoubtSolverResponse, SolverMode } from '../types';
-
-declare global {
-  interface Window {
-    katex: any;
-  }
-}
+import MathMarkdown from './MathMarkdown';
 
 interface ToolsPanelProps {
   data: DoubtSolverResponse;
@@ -14,51 +9,6 @@ interface ToolsPanelProps {
 }
 
 type Tab = 'theory' | 'flashcards' | 'teacher';
-
-const MathText: React.FC<{ text: string, className?: string }> = ({ text, className }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!containerRef.current || !window.katex) return;
-    const element = containerRef.current;
-    element.innerHTML = '';
-    
-    // UPDATED REGEX: Matches $$...$$, \[...\], \(...\), and $...$
-    const parts = text.split(/(\$\$[\s\S]*?\$\$|\\\[[\s\S]*?\\\]|\\\([\s\S]*?\\\)|(?<!\\)\$[^$]+?(?<!\\)\$)/g);
-
-    parts.forEach(part => {
-      // Clean up the delimiter for KaTeX
-      const isBlock = part.startsWith('$$') || part.startsWith('\\[');
-      const isInline = part.startsWith('\\(') || (part.startsWith('$') && !isBlock);
-
-      if (isBlock) {
-        const math = part.startsWith('$$') ? part.slice(2, -2) : part.slice(2, -2);
-        const span = document.createElement('div');
-        span.className = 'my-2 overflow-x-auto';
-        try {
-          window.katex.render(math, span, { displayMode: true, throwOnError: false });
-        } catch (e) { span.textContent = part; }
-        element.appendChild(span);
-      } else if (isInline) {
-        let math = part;
-        if (part.startsWith('\\(')) math = part.slice(2, -2);
-        else if (part.startsWith('$')) math = part.slice(1, -1);
-        
-        const span = document.createElement('span');
-        try {
-          window.katex.render(math, span, { displayMode: false, throwOnError: false });
-        } catch (e) { span.textContent = part; }
-        element.appendChild(span);
-      } else {
-        const span = document.createElement('span');
-        span.innerHTML = part.replace(/\n/g, '<br/>');
-        element.appendChild(span);
-      }
-    });
-  }, [text]);
-
-  return <div ref={containerRef} className={className || "text-gray-100"} />;
-};
 
 const ToolsPanel: React.FC<ToolsPanelProps> = ({ data, mode }) => {
   if (mode === 'exam' || mode === 'hint') {
@@ -84,7 +34,9 @@ const ToolsPanel: React.FC<ToolsPanelProps> = ({ data, mode }) => {
           <div className="space-y-6 animate-fadeIn">
             <div>
               <h3 className="font-bold text-white mb-2">Key Concept Summary</h3>
-              <p className="text-gray-300 text-sm leading-relaxed">{data.theory.summary}</p>
+              <div className="text-gray-300 text-sm">
+                <MathMarkdown text={data.theory.summary} />
+              </div>
             </div>
             
             {data.theory.key_formulas.length > 0 && (
@@ -97,7 +49,8 @@ const ToolsPanel: React.FC<ToolsPanelProps> = ({ data, mode }) => {
                         <span className="font-semibold text-blue-400 text-sm">{f.name}</span>
                       </div>
                       <div className="bg-white/5 p-3 rounded border border-white/5 text-center text-white my-3 overflow-x-auto shadow-inner">
-                        <MathText text={`$$ ${f.formula_latex} $$`} />
+                        {/* Removed manual $$ wrapping as formula_latex usually contains delimiters from prompt instructions */}
+                        <MathMarkdown text={f.formula_latex} />
                       </div>
                       <p className="text-xs text-gray-500">{f.usage}</p>
                     </div>
@@ -119,15 +72,17 @@ const ToolsPanel: React.FC<ToolsPanelProps> = ({ data, mode }) => {
               >
                 <div className="flip-card-inner">
                   {/* Front */}
-                  <div className="flip-card-front bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-md border border-white/10 text-white p-6 flex flex-col items-center justify-center shadow-lg rounded-xl">
-                    <span className="text-xs uppercase tracking-widest text-blue-400 mb-2 opacity-80">{card.tag}</span>
-                    <h4 className="font-bold text-lg text-center leading-tight">{card.front}</h4>
-                    <p className="text-xs absolute bottom-4 text-gray-400 no-print">Tap to flip</p>
+                  <div className="flip-card-front bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-md border border-white/10 text-white p-6 flex flex-col items-center justify-center shadow-lg rounded-xl overflow-y-auto scrollbar-thin scrollbar-thumb-white/20">
+                    <span className="text-xs uppercase tracking-widest text-blue-400 mb-2 opacity-80 flex-shrink-0">{card.tag}</span>
+                    <div className="font-bold text-lg text-center leading-tight">
+                        <MathMarkdown text={card.front} />
+                    </div>
+                    <p className="text-xs absolute bottom-2 text-gray-400 no-print">Tap to flip</p>
                   </div>
                   {/* Back */}
-                  <div className="flip-card-back bg-black/80 border border-blue-500/30 text-white p-6 flex items-center justify-center shadow-lg rounded-xl overflow-hidden backdrop-blur-xl">
+                  <div className="flip-card-back bg-black/80 border border-blue-500/30 text-white p-6 flex items-center justify-center shadow-lg rounded-xl backdrop-blur-xl overflow-y-auto scrollbar-thin scrollbar-thumb-white/20">
                     <div className="text-center w-full">
-                         <MathText text={card.back} className="font-medium text-sm" />
+                         <MathMarkdown text={card.back} className="font-medium text-sm" />
                     </div>
                   </div>
                 </div>
@@ -146,7 +101,9 @@ const ToolsPanel: React.FC<ToolsPanelProps> = ({ data, mode }) => {
                <h3 className="font-bold text-amber-500 mb-2 text-sm uppercase">Common Mistakes</h3>
                <ul className="list-disc list-inside space-y-1">
                  {data.common_mistakes.map((m, i) => (
-                   <li key={i} className="text-sm text-gray-300">{m}</li>
+                   <li key={i} className="text-sm text-gray-300">
+                     <MathMarkdown text={m} className="inline" />
+                   </li>
                  ))}
                </ul>
              </div>
@@ -155,7 +112,9 @@ const ToolsPanel: React.FC<ToolsPanelProps> = ({ data, mode }) => {
                <h3 className="font-bold text-blue-400 mb-2 text-sm uppercase">Where Students Struggle</h3>
                <ul className="list-disc list-inside space-y-1">
                  {data.teacher_notes.where_student_may_struggle.map((m, i) => (
-                   <li key={i} className="text-sm text-gray-300">{m}</li>
+                   <li key={i} className="text-sm text-gray-300">
+                     <MathMarkdown text={m} className="inline" />
+                   </li>
                  ))}
                </ul>
              </div>

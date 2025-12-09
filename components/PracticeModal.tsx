@@ -1,62 +1,12 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Clock, HelpCircle, CheckCircle2, AlertCircle } from 'lucide-react';
 import { SimilarQuestion } from '../types';
-
-declare global {
-  interface Window {
-    katex: any;
-  }
-}
+import MathMarkdown from './MathMarkdown';
 
 interface PracticeModalProps {
   question: SimilarQuestion;
   onClose: () => void;
 }
-
-const MathText: React.FC<{ text: string, className?: string }> = ({ text, className }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!containerRef.current || !window.katex) return;
-    const element = containerRef.current;
-    element.innerHTML = '';
-    
-    // UPDATED REGEX: Matches $$...$$, \[...\], \(...\), and $...$
-    const parts = text.split(/(\$\$[\s\S]*?\$\$|\\\[[\s\S]*?\\\]|\\\([\s\S]*?\\\)|(?<!\\)\$[^$]+?(?<!\\)\$)/g);
-
-    parts.forEach(part => {
-      // Clean up the delimiter for KaTeX
-      const isBlock = part.startsWith('$$') || part.startsWith('\\[');
-      const isInline = part.startsWith('\\(') || (part.startsWith('$') && !isBlock);
-
-      if (isBlock) {
-        const math = part.startsWith('$$') ? part.slice(2, -2) : part.slice(2, -2);
-        const span = document.createElement('div');
-        span.className = 'my-2 overflow-x-auto';
-        try {
-          window.katex.render(math, span, { displayMode: true, throwOnError: false });
-        } catch (e) { span.textContent = part; }
-        element.appendChild(span);
-      } else if (isInline) {
-        let math = part;
-        if (part.startsWith('\\(')) math = part.slice(2, -2);
-        else if (part.startsWith('$')) math = part.slice(1, -1);
-        
-        const span = document.createElement('span');
-        try {
-          window.katex.render(math, span, { displayMode: false, throwOnError: false });
-        } catch (e) { span.textContent = part; }
-        element.appendChild(span);
-      } else {
-        const span = document.createElement('span');
-        span.innerHTML = part.replace(/\n/g, '<br/>');
-        element.appendChild(span);
-      }
-    });
-  }, [text]);
-
-  return <div ref={containerRef} className={className || "text-gray-100"} />;
-};
 
 const PracticeModal: React.FC<PracticeModalProps> = ({ question, onClose }) => {
   const [timeLeft, setTimeLeft] = useState(0);
@@ -119,17 +69,19 @@ const PracticeModal: React.FC<PracticeModalProps> = ({ question, onClose }) => {
                 }`}>
                 {question.difficulty}
               </span>
-              <h4 className="text-xl font-medium text-white leading-relaxed">
-                <MathText text={question.question} />
-              </h4>
+              <div className="text-xl font-medium text-white leading-relaxed">
+                <MathMarkdown text={question.question} />
+              </div>
             </div>
 
             <div className="bg-white/5 p-4 rounded-xl border border-white/5">
               <div className="flex items-start gap-3">
                 <HelpCircle className="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" />
-                <div>
+                <div className="w-full">
                   <p className="font-bold text-white text-sm mb-1">Hint</p>
-                  <p className="text-sm text-gray-400 italic">{question.hint}</p>
+                  <div className="text-sm text-gray-400 italic">
+                     <MathMarkdown text={question.hint} />
+                  </div>
                 </div>
               </div>
             </div>
@@ -149,7 +101,7 @@ const PracticeModal: React.FC<PracticeModalProps> = ({ question, onClose }) => {
                 <div className="border-t border-white/10 pt-6">
                   <h5 className="font-bold text-blue-400 mb-3">Correct Answer</h5>
                   <div className="text-lg text-white font-medium p-4 bg-blue-500/10 rounded-xl border border-blue-500/20">
-                     <MathText text={question.answer || "Answer not provided. Check the steps."} />
+                     <MathMarkdown text={question.answer || "Answer not provided. Check the steps."} />
                   </div>
                 </div>
 

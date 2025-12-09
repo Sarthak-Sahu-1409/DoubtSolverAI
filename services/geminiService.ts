@@ -1,4 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Modality } from "@google/genai";
 import { DoubtSolverResponse, SolverMode } from "../types";
 
 const SYSTEM_PROMPT = `
@@ -114,10 +114,12 @@ Respond ONLY with valid JSON matching EXACTLY this schema:
    - **ALWAYS** wrap mathematical expressions, variables, and equations in '$' delimiters.
    - Use '$' for inline math (e.g., "$x^2$", "$\\frac{1}{2}$", "$\\sqrt{3}$").
    - Use '$$' for block math (e.g., "$$ \\int_0^\\infty f(x) dx $$").
-   - **NEVER** output plain LaTeX without delimiters (e.g., DO NOT write "\sqrt{3}" or "x^2" or "2 + 2i\sqrt{3}" without wrapping them in $...$).
+   - **For Chemical Equations**: Use LaTeX math mode with \\mathrm or \\text (e.g., "$\\mathrm{2H_2 + O_2 \\rightarrow 2H_2O}$").
+   - **For Physics Formulas**: Use standard LaTeX (e.g., "$F = ma$", "$E = mc^2$").
+   - **NEVER** output plain LaTeX without delimiters (e.g., DO NOT write "\\sqrt{3}" or "x^2" or "2 + 2i\\sqrt{3}" without wrapping them in $...$).
    - **JSON ESCAPING**: You MUST double-escape all backslashes in strings. 
      - Correct: "$ \\\\sqrt{3} $" becomes JSON string "$\\\\sqrt{3}$".
-     - Incorrect: "\sqrt{3}".
+     - Incorrect: "\\sqrt{3}".
 
 # STYLE GUIDELINES
 - Use clear, simple teaching language.
@@ -164,7 +166,7 @@ export const analyzeImage = async (
   const userContext = JSON.stringify({
     mode: mode,
     user_language: language,
-    instruction: `Analyze in '${mode}' mode. CRITICAL: Wrap ALL math symbols in $ or $$ delimiters.`
+    instruction: `Analyze in '${mode}' mode. CRITICAL: Wrap ALL math symbols in $ or $$ delimiters. Use LaTeX for Chemistry/Physics.`
   });
 
   try {
@@ -199,4 +201,122 @@ export const analyzeImage = async (
     console.error("Error calling Gemini API:", error);
     throw error;
   }
+};
+
+// --- VISUAL SOLUTION SERVICE ---
+export const generateVisualSolution = async (base64Image: string): Promise<string> => {
+  if (!process.env.API_KEY) throw new Error("API Key missing");
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  
+  const cleanBase64 = base64Image.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, "");
+
+  const response = await ai.models.generateContent({
+    model: 'gemini-2.5-flash-image',
+    contents: {
+      parts: [
+        {
+          inlineData: {
+            data: cleanBase64,
+            mimeType: 'image/png',
+          },
+        },
+        {
+          text: 'You are a visual math tutor. Read the problem in the image carefully, solve it step-by-step, and write every step directly ON the image using bright, high-contrast digital ink. Number each step clearly, do not skip anything, and box the final answer at the bottom. If space is small, extend the canvas. Return only the edited image with the full solution written on it',
+        },
+      ],
+    },
+  });
+
+  // Extract generated image
+  for (const part of response.candidates?.[0]?.content?.parts || []) {
+    if (part.inlineData) {
+      return `data:image/png;base64,${part.inlineData.data}`;
+    }
+  }
+
+  throw new Error("No visual solution generated");
+};
+
+// --- CHAT SERVICE ---
+export const createTutorChat = (historyContext: any) => {
+  if (!process.env.API_KEY) throw new Error("API Key missing");
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  
+  return ai.chats.create({
+    model: 'gemini-2.5-flash',
+    config: {
+      systemInstruction: `You are a patient, Socratic AI Tutor. 
+      The user is asking about a specific problem they just solved.
+      Context: ${JSON.stringify(historyContext)}
+      
+      RULES:
+      1. Use Markdown for all math (wrap in $ or $$).
+      2. For chemical equations use $\\mathrm{...}$ syntax.
+      3. Do not just give answers; guide the student.
+      4. Be concise and encouraging.
+      `,
+    }
+  });
+};
+
+// --- AUDIO SERVICE (TTS) ---
+
+// Helper to decode Base64 string to Uint8Array
+function decodeBase64(base64: string): Uint8Array {
+  const binaryString = atob(base64);
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes;
+}
+
+// Helper to convert Raw PCM data (Int16) to AudioBuffer
+// Gemini TTS model returns raw PCM at 24kHz
+async function pcmToAudioBuffer(
+  data: Uint8Array,
+  ctx: AudioContext,
+  sampleRate: number = 24000,
+  numChannels: number = 1
+): Promise<AudioBuffer> {
+  const dataInt16 = new Int16Array(data.buffer);
+  const frameCount = dataInt16.length / numChannels;
+  const buffer = ctx.createBuffer(numChannels, frameCount, sampleRate);
+
+  for (let channel = 0; channel < numChannels; channel++) {
+    const channelData = buffer.getChannelData(channel);
+    for (let i = 0; i < frameCount; i++) {
+      // Convert Int16 (-32768 to 32767) to Float32 (-1.0 to 1.0)
+      channelData[i] = dataInt16[i * numChannels + channel] / 32768.0;
+    }
+  }
+  return buffer;
+}
+
+export const generateAudioExplanation = async (textToSpeak: string): Promise<AudioBuffer> => {
+  if (!process.env.API_KEY) throw new Error("API Key missing");
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
+  const response = await ai.models.generateContent({
+    model: "gemini-2.5-flash-preview-tts",
+    contents: [{ parts: [{ text: textToSpeak }] }],
+    config: {
+      responseModalities: [Modality.AUDIO],
+      speechConfig: {
+        voiceConfig: {
+          prebuiltVoiceConfig: { voiceName: 'Kore' },
+        },
+      },
+    },
+  });
+
+  const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+  if (!base64Audio) throw new Error("No audio generated");
+
+  const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+  const audioBytes = decodeBase64(base64Audio);
+  
+  // Use the PCM decoder logic
+  return await pcmToAudioBuffer(audioBytes, audioContext, 24000, 1);
 };

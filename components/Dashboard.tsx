@@ -1,17 +1,20 @@
 import React, { useState } from 'react';
-import { BarChart, Clock, Zap, Tag, Timer, Download } from 'lucide-react';
+import { BarChart, Clock, Zap, Tag, Timer, Download, Network, Target } from 'lucide-react';
 import { DoubtSolverResponse, SolverMode, SimilarQuestion } from '../types';
 import SolutionCard from './SolutionCard';
 import ToolsPanel from './ToolsPanel';
 import PracticeModal from './PracticeModal';
+import TutorChat from './TutorChat';
+import MediaPanel from './MediaPanel';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 
 interface DashboardProps {
   data: DoubtSolverResponse;
   mode: SolverMode;
+  originalImage?: string | null;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ data, mode }) => {
+const Dashboard: React.FC<DashboardProps> = ({ data, mode, originalImage }) => {
   const [practiceQuestion, setPracticeQuestion] = useState<SimilarQuestion | null>(null);
 
   const confidenceData = [
@@ -109,8 +112,57 @@ const Dashboard: React.FC<DashboardProps> = ({ data, mode }) => {
         </div>
       </div>
 
+      {/* Deep Learning Analysis Section */}
+      {!isFullWidthMode && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-slideUp" style={{ animationDelay: '100ms' }}>
+          {/* Prerequisites */}
+          <div className="bg-white/5 backdrop-blur-md border border-white/10 p-5 rounded-xl shadow-lg hover:bg-white/10 transition-colors group">
+             <div className="flex items-center gap-3 mb-4">
+               <div className="p-2 bg-pink-500/20 rounded-lg text-pink-400 group-hover:scale-110 transition-transform">
+                 <Network className="w-5 h-5" />
+               </div>
+               <h3 className="font-bold text-white text-sm uppercase tracking-wide">Prerequisite Concepts</h3>
+             </div>
+             <div className="flex flex-wrap gap-2">
+               {data.prerequisite_concepts?.map((concept, idx) => (
+                 <span key={idx} className="px-3 py-1 bg-pink-500/10 text-pink-300 border border-pink-500/20 rounded-full text-xs font-medium">
+                   {concept}
+                 </span>
+               ))}
+               {(!data.prerequisite_concepts || data.prerequisite_concepts.length === 0) && (
+                  <span className="text-gray-500 text-xs italic">No specific prerequisites detected.</span>
+               )}
+             </div>
+          </div>
+
+          {/* Skills Tested */}
+          <div className="bg-white/5 backdrop-blur-md border border-white/10 p-5 rounded-xl shadow-lg hover:bg-white/10 transition-colors group">
+             <div className="flex items-center gap-3 mb-4">
+               <div className="p-2 bg-emerald-500/20 rounded-lg text-emerald-400 group-hover:scale-110 transition-transform">
+                 <Target className="w-5 h-5" />
+               </div>
+               <h3 className="font-bold text-white text-sm uppercase tracking-wide">Skills & Competencies</h3>
+             </div>
+             <div className="flex flex-wrap gap-2">
+               {data.skills_tested?.map((skill, idx) => (
+                 <span key={idx} className="px-3 py-1 bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 rounded-full text-xs font-medium">
+                   {skill}
+                 </span>
+               ))}
+                {(!data.skills_tested || data.skills_tested.length === 0) && (
+                  <span className="text-gray-500 text-xs italic">No specific skills listed.</span>
+               )}
+             </div>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className={`${isFullWidthMode ? 'lg:col-span-3' : 'lg:col-span-2'} space-y-6 transition-all duration-300`}>
+          
+          {/* New Media Panel for Video/Audio */}
+          {!isFullWidthMode && <MediaPanel data={data} originalImage={originalImage} />}
+
           <SolutionCard data={data} mode={mode} />
           
           {/* Similar Questions Block - Glassmorphism */}
@@ -144,8 +196,9 @@ const Dashboard: React.FC<DashboardProps> = ({ data, mode }) => {
         </div>
 
         {!isFullWidthMode && (
-          <div className="lg:col-span-1">
-            <div className="sticky top-6">
+          <div className="lg:col-span-1 space-y-6">
+            <div className="sticky top-6 space-y-6">
+              <TutorChat data={data} />
               <ToolsPanel data={data} mode={mode} />
             </div>
           </div>

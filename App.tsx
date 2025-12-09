@@ -158,7 +158,7 @@ function App() {
         {/* Results Dashboard */}
         {result && (
           <div className="animate-slideUp pb-20">
-             <Dashboard data={result} mode={mode} />
+             <Dashboard data={result} mode={mode} originalImage={image} />
           </div>
         )}
 

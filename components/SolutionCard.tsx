@@ -1,66 +1,12 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState } from 'react';
 import { CheckCircle2, AlertTriangle, Lightbulb, ChevronDown, ChevronRight, Calculator, BookOpen } from 'lucide-react';
 import { DoubtSolverResponse, SolverMode } from '../types';
-
-declare global {
-  interface Window {
-    katex: any;
-  }
-}
+import MathMarkdown from './MathMarkdown';
 
 interface SolutionCardProps {
   data: DoubtSolverResponse;
   mode: SolverMode;
 }
-
-const MathText: React.FC<{ text: string }> = ({ text }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!containerRef.current || !window.katex) return;
-    const element = containerRef.current;
-    element.innerHTML = '';
-    
-    // UPDATED REGEX: Now catches single $...$ blocks while ignoring escaped \$
-    // 1. Block: $$...$$ or \[...\]
-    // 2. Inline: \(...\) or $...$ (negative lookbehind to ensure not escaped)
-    const parts = text.split(/(\$\$[\s\S]*?\$\$|\\\[[\s\S]*?\\\]|\\\([\s\S]*?\\\)|(?<!\\)\$[^$]+?(?<!\\)\$)/g);
-
-    parts.forEach(part => {
-      // Clean up the delimiter for KaTeX
-      const isBlock = part.startsWith('$$') || part.startsWith('\\[');
-      const isInline = part.startsWith('\\(') || (part.startsWith('$') && !isBlock);
-
-      if (isBlock) {
-        const math = part.startsWith('$$') ? part.slice(2, -2) : part.slice(2, -2);
-        const span = document.createElement('div');
-        span.className = 'my-2 overflow-x-auto';
-        try {
-          window.katex.render(math, span, { displayMode: true, throwOnError: false });
-        } catch (e) { span.textContent = part; }
-        element.appendChild(span);
-      } else if (isInline) {
-        // Handle \(...\) or $...$
-        let math = part;
-        if (part.startsWith('\\(')) math = part.slice(2, -2);
-        else if (part.startsWith('$')) math = part.slice(1, -1);
-        
-        const span = document.createElement('span');
-        try {
-          window.katex.render(math, span, { displayMode: false, throwOnError: false });
-        } catch (e) { span.textContent = part; }
-        element.appendChild(span);
-      } else {
-        // Render plain text. Replace newlines with breaks.
-        const span = document.createElement('span');
-        span.innerHTML = part.replace(/\n/g, '<br/>');
-        element.appendChild(span);
-      }
-    });
-  }, [text]);
-
-  return <div ref={containerRef} className="text-gray-100 leading-relaxed font-medium solution-text" />;
-};
 
 const SolutionCard: React.FC<SolutionCardProps> = ({ data, mode }) => {
   const [hintIndex, setHintIndex] = useState(0);
@@ -88,7 +34,7 @@ const SolutionCard: React.FC<SolutionCardProps> = ({ data, mode }) => {
             <div key={idx} className="bg-black/20 p-5 rounded-lg border border-white/5 text-gray-100 animate-fadeIn relative overflow-hidden">
                <div className="absolute left-0 top-0 bottom-0 w-1 bg-yellow-500/50"></div>
                <span className="font-bold text-yellow-500 block mb-2 text-xs uppercase tracking-wider">Hint {idx + 1}</span>
-               <MathText text={hint} />
+               <MathMarkdown text={hint} />
             </div>
           ))}
         </div>
@@ -125,7 +71,7 @@ const SolutionCard: React.FC<SolutionCardProps> = ({ data, mode }) => {
              data.step_by_step_solution.map((step, idx) => (
                <div key={idx} className="bg-black/20 p-4 rounded-lg border border-white/5 hover:border-blue-500/30 transition-colors">
                  {step.title && <h4 className="text-blue-400 font-bold text-sm mb-2">{step.title}</h4>}
-                 <MathText text={step.content} />
+                 <MathMarkdown text={step.content} className="text-sm" />
                </div>
              ))
           ) : (
@@ -141,7 +87,7 @@ const SolutionCard: React.FC<SolutionCardProps> = ({ data, mode }) => {
                     <p className="font-medium text-white mb-2">{card.front}</p>
                     <hr className="border-white/5 my-2"/>
                     <div className="text-sm text-blue-300">
-                       <MathText text={card.back} />
+                       <MathMarkdown text={card.back} />
                     </div>
                   </div>
                 ))}
@@ -161,7 +107,7 @@ const SolutionCard: React.FC<SolutionCardProps> = ({ data, mode }) => {
            <div className="flex-1">
              <h2 className="text-sm font-bold text-gray-400 uppercase tracking-wide mb-2">Final Answer</h2>
              <div className="text-2xl font-bold text-white p-6 bg-green-500/10 border border-green-500/20 rounded-xl">
-               <MathText text={data.short_answer} />
+               <MathMarkdown text={data.short_answer} />
              </div>
            </div>
         </div>
@@ -179,8 +125,8 @@ const SolutionCard: React.FC<SolutionCardProps> = ({ data, mode }) => {
             {data.step_by_step_solution.map((step, idx) => (
               <div key={idx} className="flex gap-4 p-4 bg-black/20 rounded-lg border border-white/5">
                 <div className="font-mono text-blue-400 opacity-50">{idx + 1}.</div>
-                <div className="text-sm text-gray-200">
-                  <MathText text={step.content} />
+                <div className="text-sm text-gray-200 w-full">
+                  <MathMarkdown text={step.content} />
                 </div>
               </div>
             ))}
@@ -213,7 +159,7 @@ const SolutionCard: React.FC<SolutionCardProps> = ({ data, mode }) => {
             <div className="flex-grow pt-1 min-w-0">
                {step.title && <h4 className="font-bold text-white mb-2 text-lg tracking-tight print:text-black">{step.title}</h4>}
                <div className="bg-white/5 p-5 rounded-xl border border-white/5 hover:bg-white/10 transition-colors print:bg-transparent print:border-gray-200">
-                 <MathText text={step.content} />
+                 <MathMarkdown text={step.content} className="text-gray-100" />
                  {step.concepts_applied && step.concepts_applied.length > 0 && (
                    <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-white/10">
                      {step.concepts_applied.map((concept, cIdx) => (
@@ -234,7 +180,7 @@ const SolutionCard: React.FC<SolutionCardProps> = ({ data, mode }) => {
         <div className="w-full overflow-hidden">
           <h3 className="font-bold text-blue-400 text-sm uppercase tracking-wide mb-3 print:text-black">Final Answer</h3>
           <div className="text-xl font-medium text-white print:text-black">
-            <MathText text={data.short_answer} />
+            <MathMarkdown text={data.short_answer} />
           </div>
         </div>
       </div>

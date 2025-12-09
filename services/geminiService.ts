@@ -220,13 +220,24 @@ export const generateVisualSolution = async (base64Image: string): Promise<strin
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   // Use robust parser to ensure we send the correct MIME type (e.g. jpeg vs png)
-  // RPC errors often happen if we claim it's PNG but send JPEG bytes.
   const { mimeType, data } = parseBase64(base64Image);
 
-  try {
+  // SIMPLIFIED PROMPT FOR BETTER ACCURACY AND LEGIBILITY
+  // Instruction: REPLACE question with solution.
+  const prompt = `Act as a math tutor. Solve the problem. 
+  
+  CRITICAL VISUAL INSTRUCTIONS:
+  1. The final image should be a pure SOLUTION SHEET. 
+  2. REPLACE the original question text with the solution steps. Do not rewrite the question.
+  3. Write ONLY the mathematical steps and the Final Answer.
+  4. Use LARGE, BLOCK handwriting for maximum readability.
+  5. Draw mathematical symbols (square roots, fractions) clearly and accurately.
+  6. Use high contrast colors (white background with dark ink, or dark background with bright ink) so it is readable.
+  `;
+
+  const generateWithModel = async (model: string) => {
     const response = await ai.models.generateContent({
-      // Using Pro model for superior image editing and text generation capabilities
-      model: 'gemini-3-pro-image-preview',
+      model: model,
       contents: {
         parts: [
           {
@@ -236,19 +247,7 @@ export const generateVisualSolution = async (base64Image: string): Promise<strin
             },
           },
           {
-            text: `You are an expert Math Tutor with perfect handwriting. 
-            Task: Solve the math problem shown in the image.
-            Action: Generate a new image that overlays the step-by-step solution onto the original image.
-            
-            STRICT GUIDELINES:
-            1. **SPELLING MUST BE PERFECT**. Check every word twice. No typos allowed.
-            2. Use **High-Contrast** digital ink (Cyan, Neon Green, or Bright Yellow) so it stands out vividly.
-            3. Write **clearly and legibly**. The text must be professional and easy to read.
-            4. **Number each step** (1, 2, 3...) of the solution clearly.
-            5. **Box the final answer** at the end.
-            6. Use whitespace effectively; do not obscure the original question if possible.
-            
-            Return only the edited image with the full, correctly spelled solution written on it.`,
+            text: prompt,
           },
         ],
       },
@@ -260,12 +259,23 @@ export const generateVisualSolution = async (base64Image: string): Promise<strin
         return `data:image/png;base64,${part.inlineData.data}`;
       }
     }
-  } catch (e) {
-    console.error("Visual solution error details:", e);
-    throw new Error("Failed to generate visual solution. Please try again or use a smaller image.");
-  }
+    throw new Error(`Model ${model} returned no image data.`);
+  };
 
-  throw new Error("No visual solution generated");
+  try {
+    // Attempt 1: Gemini 3 Pro (Best Quality for Text)
+    return await generateWithModel('gemini-3-pro-image-preview');
+  } catch (e: any) {
+    console.warn("Gemini 3 Pro failed, falling back to Flash.", e);
+    
+    // Attempt 2: Fallback to Flash Image model
+    try {
+      return await generateWithModel('gemini-2.5-flash-image');
+    } catch (fallbackError: any) {
+      console.error("Visual solution fallback failed:", fallbackError);
+      throw new Error("Failed to generate visual solution.");
+    }
+  }
 };
 
 // --- CHAT SERVICE ---

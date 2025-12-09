@@ -1,0 +1,8 @@
+{
+  "name": "DoubtSolver AI",
+  "description": "A production-grade, multimodal AI tutor that provides structured solutions, flashcards, video scripts, and deep learning analysis for homework questions.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}

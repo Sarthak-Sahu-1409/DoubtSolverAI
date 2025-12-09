@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DoubtSolver AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" integrity="sha384-n8MVd4RsNIU0tAv4ct0nTaAbDJwPJzDEaqSD1odI+WdtXRGWt2kTvGFasHpSy3SV" crossorigin="anonymous">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" integrity="sha384-XjKyOOlGwcjNTAIQHIpgOno0Hl1YQqzUOEleOLALmuqehneUG+vnGctmUb0ZY0l8" crossorigin="anonymous"></script>
+    <style>
+      body {
+        font-family: 'Inter', sans-serif;
+        background-color: #000000;
+        color: #ffffff;
+      }
+      
+      /* KaTeX Aggressive Overrides for Dark Mode visibility */
+      .katex {
+        font-size: 1.1em !important;
+        font-weight: 500 !important;
+        color: #ffffff !important;
+      }
+      .katex .katex-html {
+        color: #ffffff !important;
+      }
+      .katex-display {
+        margin: 1em 0;
+        overflow-x: auto;
+        overflow-y: hidden;
+      }
+      /* Ensure fraction lines and roots are white */
+      .katex .frac-line, .katex .sqrt-line, .katex .overline-line, .katex .underline-line {
+        border-color: #ffffff !important;
+      }
+      .katex .path {
+        stroke: #ffffff !important;
+      }
+
+      /* Custom scrollbar */
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.05); 
+      }
+      ::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 10px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.4);
+      }
+
+      /* Flip card styles */
+      .flip-card {
+        background-color: transparent;
+        perspective: 1000px;
+      }
+      .flip-card-inner {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        text-align: center;
+        transition: transform 0.6s;
+        transform-style: preserve-3d;
+      }
+      .flip-card.flipped .flip-card-inner {
+        transform: rotateY(180deg);
+      }
+      .flip-card-front, .flip-card-back {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        -webkit-backface-visibility: hidden;
+        backface-visibility: hidden;
+        border-radius: 0.75rem;
+      }
+      .flip-card-back {
+        transform: rotateY(180deg);
+      }
+
+      /* STRICT PRINT STYLES for PDF Export */
+      @media print {
+        @page {
+          margin: 1cm;
+        }
+        body {
+          background-color: #ffffff !important;
+          color: #000000 !important;
+          -webkit-print-color-adjust: exact;
+        }
+        /* Hide all UI elements */
+        .no-print, nav, button, .recharts-wrapper {
+          display: none !important;
+        }
+        /* Force black text everywhere */
+        * {
+          color: #000000 !important;
+          background-color: transparent !important;
+          text-shadow: none !important;
+          box-shadow: none !important;
+          border-color: #ccc !important;
+          filter: none !important;
+        }
+        /* KaTeX overrides for print */
+        .katex, .katex .katex-html, .katex .path {
+          color: #000000 !important;
+          stroke: #000000 !important;
+        }
+        .katex .frac-line, .katex .sqrt-line, .katex .overline-line, .katex .underline-line {
+          border-color: #000000 !important;
+        }
+        /* Ensure step numbers are visible */
+        .rounded-full {
+          border: 2px solid #000 !important;
+          color: #000 !important;
+        }
+        /* Hide scrollbars in print */
+        ::-webkit-scrollbar {
+          display: none;
+        }
+      }
+    </style>
+    <script type="importmap">
+    {
+      "imports": {
+        "react": "https://aistudiocdn.com/react@^19.2.1",
+        "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/",
+        "react/": "https://aistudiocdn.com/react@^19.2.1/",
+        "@google/genai": "https://aistudiocdn.com/@google/genai@^1.31.0",
+        "lucide-react": "https://aistudiocdn.com/lucide-react@^0.556.0",
+        "recharts": "https://aistudiocdn.com/recharts@^3.5.1"
+      }
+    }
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>

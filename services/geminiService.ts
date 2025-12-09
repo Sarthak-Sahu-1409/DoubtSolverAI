@@ -149,6 +149,17 @@ const cleanAndParseJSON = (text: string): DoubtSolverResponse => {
   }
 };
 
+// Helper to reliably extract mime type and data from base64 string
+const parseBase64 = (base64String: string) => {
+  // Check if header exists
+  const match = base64String.match(/^data:(image\/\w+);base64,(.+)$/);
+  if (match) {
+    return { mimeType: match[1], data: match[2] };
+  }
+  // Fallback: assume png if no header (common in some drag-drop libs), or returns raw if it was already raw
+  return { mimeType: 'image/png', data: base64String.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, "") };
+};
+
 export const analyzeImage = async (
   base64Image: string,
   mode: SolverMode,
@@ -160,8 +171,8 @@ export const analyzeImage = async (
 
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
-  // Clean base64 string if it contains metadata header
-  const cleanBase64 = base64Image.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, "");
+  // Use robust parser
+  const { mimeType, data } = parseBase64(base64Image);
 
   const userContext = JSON.stringify({
     mode: mode,
@@ -179,8 +190,8 @@ export const analyzeImage = async (
           { text: `Context: ${userContext}` },
           {
             inlineData: {
-              mimeType: "image/png", 
-              data: cleanBase64,
+              mimeType: mimeType, 
+              data: data,
             },
           },
         ],
@@ -208,30 +219,50 @@ export const generateVisualSolution = async (base64Image: string): Promise<strin
   if (!process.env.API_KEY) throw new Error("API Key missing");
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
-  const cleanBase64 = base64Image.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, "");
+  // Use robust parser to ensure we send the correct MIME type (e.g. jpeg vs png)
+  // RPC errors often happen if we claim it's PNG but send JPEG bytes.
+  const { mimeType, data } = parseBase64(base64Image);
 
-  const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash-image',
-    contents: {
-      parts: [
-        {
-          inlineData: {
-            data: cleanBase64,
-            mimeType: 'image/png',
+  try {
+    const response = await ai.models.generateContent({
+      // Using Pro model for superior image editing and text generation capabilities
+      model: 'gemini-3-pro-image-preview',
+      contents: {
+        parts: [
+          {
+            inlineData: {
+              data: data,
+              mimeType: mimeType,
+            },
           },
-        },
-        {
-          text: 'You are a visual math tutor. Read the problem in the image carefully, solve it step-by-step, and write every step directly ON the image using bright, high-contrast digital ink. Number each step clearly, do not skip anything, and box the final answer at the bottom. If space is small, extend the canvas. Return only the edited image with the full solution written on it',
-        },
-      ],
-    },
-  });
+          {
+            text: `You are an expert Math Tutor with perfect handwriting. 
+            Task: Solve the math problem shown in the image.
+            Action: Generate a new image that overlays the step-by-step solution onto the original image.
+            
+            STRICT GUIDELINES:
+            1. **SPELLING MUST BE PERFECT**. Check every word twice. No typos allowed.
+            2. Use **High-Contrast** digital ink (Cyan, Neon Green, or Bright Yellow) so it stands out vividly.
+            3. Write **clearly and legibly**. The text must be professional and easy to read.
+            4. **Number each step** (1, 2, 3...) of the solution clearly.
+            5. **Box the final answer** at the end.
+            6. Use whitespace effectively; do not obscure the original question if possible.
+            
+            Return only the edited image with the full, correctly spelled solution written on it.`,
+          },
+        ],
+      },
+    });
 
-  // Extract generated image
-  for (const part of response.candidates?.[0]?.content?.parts || []) {
-    if (part.inlineData) {
-      return `data:image/png;base64,${part.inlineData.data}`;
+    // Extract generated image
+    for (const part of response.candidates?.[0]?.content?.parts || []) {
+      if (part.inlineData) {
+        return `data:image/png;base64,${part.inlineData.data}`;
+      }
     }
+  } catch (e) {
+    console.error("Visual solution error details:", e);
+    throw new Error("Failed to generate visual solution. Please try again or use a smaller image.");
   }
 
   throw new Error("No visual solution generated");

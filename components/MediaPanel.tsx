@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Volume2, Loader2, PenTool, Image as ImageIcon, Download, Pause, Play, Square } from 'lucide-react';
+import { Loader2, PenTool, Image as ImageIcon, Download, Pause, Play, Square, AlertCircle } from 'lucide-react';
 import { generateAudioExplanation, generateVisualSolution } from '../services/geminiService';
 import { DoubtSolverResponse } from '../types';
 
@@ -23,6 +23,7 @@ const MediaPanel: React.FC<MediaPanelProps> = ({ data, originalImage }) => {
   // Visual Solution State
   const [loadingVisual, setLoadingVisual] = useState(false);
   const [visualSolutionUrl, setVisualSolutionUrl] = useState<string | null>(null);
+  const [visualError, setVisualError] = useState<string | null>(null);
 
   // Initialize Audio Context on mount
   useEffect(() => {
@@ -120,9 +121,10 @@ const MediaPanel: React.FC<MediaPanelProps> = ({ data, originalImage }) => {
 
   const handleVisualSolution = async () => {
     if (loadingVisual || visualSolutionUrl) return;
+    setVisualError(null);
     
     if (!originalImage) {
-        alert("Original image not found. Cannot generate visual overlay.");
+        setVisualError("Original image not found.");
         return;
     }
 
@@ -130,9 +132,9 @@ const MediaPanel: React.FC<MediaPanelProps> = ({ data, originalImage }) => {
     try {
         const url = await generateVisualSolution(originalImage);
         setVisualSolutionUrl(url);
-    } catch (e) {
+    } catch (e: any) {
         console.error("Visual solution failed", e);
-        alert("Failed to generate visual solution.");
+        setVisualError(e.message || "Generation failed");
     } finally {
         setLoadingVisual(false);
     }
@@ -193,8 +195,12 @@ const MediaPanel: React.FC<MediaPanelProps> = ({ data, originalImage }) => {
              <button
              onClick={handleVisualSolution}
              disabled={loadingVisual || !!visualSolutionUrl}
-             className={`flex items-center justify-center gap-3 p-4 border border-white/10 rounded-xl transition-all group h-full ${
-                 visualSolutionUrl ? 'bg-indigo-900/20 border-indigo-500/30' : 'bg-gradient-to-r from-indigo-900/40 to-cyan-900/40 hover:border-indigo-400/50'
+             className={`relative flex items-center justify-center gap-3 p-4 border rounded-xl transition-all group h-full overflow-hidden ${
+                 visualError 
+                    ? 'bg-red-900/20 border-red-500/50 hover:bg-red-900/30'
+                    : visualSolutionUrl 
+                        ? 'bg-indigo-900/20 border-indigo-500/30' 
+                        : 'bg-gradient-to-r from-indigo-900/40 to-cyan-900/40 border-white/10 hover:border-indigo-400/50'
              }`}
              >
              {loadingVisual ? (
@@ -205,6 +211,14 @@ const MediaPanel: React.FC<MediaPanelProps> = ({ data, originalImage }) => {
                         <span className="block text-xs text-indigo-300 truncate">Analyzing Pixels</span>
                     </div>
                  </>
+             ) : visualError ? (
+                <div className="flex items-center gap-2 text-red-300 w-full justify-center">
+                    <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                    <div className="text-left">
+                        <span className="block font-bold text-sm">Failed</span>
+                        <span className="block text-[10px] opacity-80">Tap to Retry</span>
+                    </div>
+                </div>
              ) : visualSolutionUrl ? (
                  <div className="flex items-center gap-2">
                      <div className="p-2 bg-indigo-500 rounded-full flex-shrink-0">
@@ -229,6 +243,14 @@ const MediaPanel: React.FC<MediaPanelProps> = ({ data, originalImage }) => {
              </button>
          )}
       </div>
+
+      {/* Error Message Display */}
+      {visualError && (
+          <div className="mt-3 text-xs text-red-400 bg-red-900/10 border border-red-900/20 p-2 rounded flex items-center justify-center gap-2">
+              <AlertCircle className="w-3 h-3" />
+              {visualError}
+          </div>
+      )}
 
       {/* Visual Solution Area */}
       {visualSolutionUrl && (

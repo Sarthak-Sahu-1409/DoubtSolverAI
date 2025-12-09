@@ -1,5 +1,12 @@
+
 export type SolverMode = 'learning' | 'exam' | 'hint' | 'revision';
 export type DifficultyLevel = 'very_easy' | 'easy' | 'medium' | 'hard' | 'very_hard';
+
+declare global {
+  interface Window {
+    katex: any;
+  }
+}
 
 export interface KeyFormula {
   name: string;

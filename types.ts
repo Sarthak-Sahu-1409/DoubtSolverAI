@@ -5,6 +5,8 @@ export type DifficultyLevel = 'very_easy' | 'easy' | 'medium' | 'hard' | 'very_h
 declare global {
   interface Window {
     katex: any;
+    SpeechRecognition: any;
+    webkitSpeechRecognition: any;
   }
 }
 
@@ -34,6 +36,12 @@ export interface Step {
   concepts_applied: string[];
 }
 
+export interface AlternativeMethod {
+  method_name: string;
+  description: string;
+  steps: Step[];
+}
+
 export interface DoubtSolverResponse {
   question_understanding: {
     raw_ocr_text: string;
@@ -50,6 +58,7 @@ export interface DoubtSolverResponse {
   };
   short_answer: string;
   step_by_step_solution: Step[];
+  alternative_methods?: AlternativeMethod[]; // New: Multiple approaches
   hints_only: string[];
   common_mistakes: string[];
   prerequisite_concepts: string[];
@@ -73,4 +82,14 @@ export interface DoubtSolverResponse {
     mode_used: string;
     message_to_student: string;
   };
+}
+
+// User Profile & Gamification Types
+export interface UserStats {
+  streak: number;
+  lastLoginDate: string;
+  problemsSolved: number;
+  xp: number;
+  mastery: Record<string, number>; // Topic -> Level (0-100)
+  achievements: string[];
 }

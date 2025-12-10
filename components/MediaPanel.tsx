@@ -1,5 +1,6 @@
+
 import React, { useState, useRef, useEffect } from 'react';
-import { Loader2, PenTool, Image as ImageIcon, Download, Pause, Play, Square, AlertCircle } from 'lucide-react';
+import { Loader2, PenTool, Image as ImageIcon, Download, Pause, Play, Square, AlertCircle, Maximize2, X } from 'lucide-react';
 import { generateAudioExplanation, generateVisualSolution } from '../services/geminiService';
 import { DoubtSolverResponse } from '../types';
 
@@ -24,6 +25,7 @@ const MediaPanel: React.FC<MediaPanelProps> = ({ data, originalImage }) => {
   const [loadingVisual, setLoadingVisual] = useState(false);
   const [visualSolutionUrl, setVisualSolutionUrl] = useState<string | null>(null);
   const [visualError, setVisualError] = useState<string | null>(null);
+  const [showFullImage, setShowFullImage] = useState(false);
 
   // Initialize Audio Context on mount
   useEffect(() => {
@@ -151,127 +153,166 @@ const MediaPanel: React.FC<MediaPanelProps> = ({ data, originalImage }) => {
   };
 
   return (
-    <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl p-6 shadow-lg mb-6">
-      <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-        <PenTool className="w-5 h-5 text-pink-400" />
-        Media & Visual Learning
-      </h3>
-      
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {/* Audio Player */}
-        <div className={`flex items-center justify-between p-4 bg-gradient-to-r from-purple-900/40 to-blue-900/40 border border-white/10 rounded-xl transition-all group h-full ${isPlaying ? 'border-blue-400/50 shadow-blue-900/20 shadow-lg' : ''}`}>
-           <div className="flex items-center gap-3 min-w-0">
-               {loadingAudio ? (
-                   <div className="p-3 bg-blue-500 rounded-full">
-                       <Loader2 className="w-4 h-4 animate-spin text-white" />
+    <>
+      <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl p-6 shadow-lg mb-6">
+        <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+          <PenTool className="w-5 h-5 text-pink-400" />
+          Media & Visual Learning
+        </h3>
+        
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Audio Player */}
+          <div className={`flex items-center justify-between p-4 bg-gradient-to-r from-purple-900/40 to-blue-900/40 border border-white/10 rounded-xl transition-all group h-full ${isPlaying ? 'border-blue-400/50 shadow-blue-900/20 shadow-lg' : ''}`}>
+             <div className="flex items-center gap-3 min-w-0">
+                 {loadingAudio ? (
+                     <div className="p-3 bg-blue-500 rounded-full">
+                         <Loader2 className="w-4 h-4 animate-spin text-white" />
+                     </div>
+                 ) : (
+                     <button 
+                         onClick={toggleAudio}
+                         className={`p-3 rounded-full transition-transform hover:scale-110 flex-shrink-0 ${isPlaying ? 'bg-yellow-500' : 'bg-blue-500'}`}
+                     >
+                         {isPlaying ? <Pause className="w-4 h-4 text-white" /> : <Play className="w-4 h-4 text-white ml-0.5" />}
+                     </button>
+                 )}
+                 <div className="min-w-0">
+                     <span className="block font-bold text-white text-sm">{isPlaying ? 'Playing...' : 'Audio Explanation'}</span>
+                     <span className="block text-xs text-gray-400 truncate">{audioBuffer ? 'Ready to play' : 'Tap to generate'}</span>
+                 </div>
+             </div>
+             
+             {(isPlaying || (audioBuffer && pausedAtRef.current > 0)) && (
+                 <button 
+                     onClick={stopAudio}
+                     className="p-2 hover:bg-white/10 rounded-full text-gray-400 hover:text-red-400 transition-colors"
+                     title="Stop & Reset"
+                 >
+                     <Square className="w-4 h-4 fill-current" />
+                 </button>
+             )}
+          </div>
+
+           {/* Visual Solution Button */}
+           {originalImage && (
+               <button
+               onClick={handleVisualSolution}
+               disabled={loadingVisual || !!visualSolutionUrl}
+               className={`relative flex items-center justify-center gap-3 p-4 border rounded-xl transition-all group h-full overflow-hidden ${
+                   visualError 
+                      ? 'bg-red-900/20 border-red-500/50 hover:bg-red-900/30'
+                      : visualSolutionUrl 
+                          ? 'bg-indigo-900/20 border-indigo-500/30' 
+                          : 'bg-gradient-to-r from-indigo-900/40 to-cyan-900/40 border-white/10 hover:border-indigo-400/50'
+               }`}
+               >
+               {loadingVisual ? (
+                   <>
+                      <Loader2 className="w-5 h-5 animate-spin text-white flex-shrink-0" />
+                      <div className="text-left min-w-0 animate-pulse">
+                          <span className="block font-bold text-white text-sm">Solving...</span>
+                          <span className="block text-xs text-indigo-300 truncate">Writing Solution</span>
+                      </div>
+                   </>
+               ) : visualError ? (
+                  <div className="flex items-center gap-2 text-red-300 w-full justify-center">
+                      <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                      <div className="text-left">
+                          <span className="block font-bold text-sm">Failed</span>
+                          <span className="block text-[10px] opacity-80">Tap to Retry</span>
+                      </div>
+                  </div>
+               ) : visualSolutionUrl ? (
+                   <div className="flex items-center gap-2">
+                       <div className="p-2 bg-indigo-500 rounded-full flex-shrink-0">
+                       <ImageIcon className="w-4 h-4 text-white" />
+                       </div>
+                       <div className="text-left min-w-0">
+                       <span className="block font-bold text-white text-sm">Solved</span>
+                       <span className="block text-xs text-gray-400 truncate">Visual Card Ready</span>
+                       </div>
                    </div>
                ) : (
-                   <button 
-                       onClick={toggleAudio}
-                       className={`p-3 rounded-full transition-transform hover:scale-110 flex-shrink-0 ${isPlaying ? 'bg-yellow-500' : 'bg-blue-500'}`}
-                   >
-                       {isPlaying ? <Pause className="w-4 h-4 text-white" /> : <Play className="w-4 h-4 text-white ml-0.5" />}
-                   </button>
+                   <>
+                   <div className="p-2 bg-indigo-500 rounded-full group-hover:scale-110 transition-transform flex-shrink-0">
+                       <PenTool className="w-4 h-4 text-white" />
+                   </div>
+                   <div className="text-left min-w-0">
+                       <span className="block font-bold text-white text-sm">Create Visual</span>
+                       <span className="block text-xs text-gray-400 truncate">Solution Card</span>
+                   </div>
+                   </>
                )}
-               <div className="min-w-0">
-                   <span className="block font-bold text-white text-sm">{isPlaying ? 'Playing...' : 'Audio Explanation'}</span>
-                   <span className="block text-xs text-gray-400 truncate">{audioBuffer ? 'Ready to play' : 'Tap to generate'}</span>
-               </div>
-           </div>
-           
-           {(isPlaying || (audioBuffer && pausedAtRef.current > 0)) && (
-               <button 
-                   onClick={stopAudio}
-                   className="p-2 hover:bg-white/10 rounded-full text-gray-400 hover:text-red-400 transition-colors"
-                   title="Stop & Reset"
-               >
-                   <Square className="w-4 h-4 fill-current" />
                </button>
            )}
         </div>
 
-         {/* Visual Solution Button */}
-         {originalImage && (
-             <button
-             onClick={handleVisualSolution}
-             disabled={loadingVisual || !!visualSolutionUrl}
-             className={`relative flex items-center justify-center gap-3 p-4 border rounded-xl transition-all group h-full overflow-hidden ${
-                 visualError 
-                    ? 'bg-red-900/20 border-red-500/50 hover:bg-red-900/30'
-                    : visualSolutionUrl 
-                        ? 'bg-indigo-900/20 border-indigo-500/30' 
-                        : 'bg-gradient-to-r from-indigo-900/40 to-cyan-900/40 border-white/10 hover:border-indigo-400/50'
-             }`}
-             >
-             {loadingVisual ? (
-                 <>
-                    <Loader2 className="w-5 h-5 animate-spin text-white flex-shrink-0" />
-                    <div className="text-left min-w-0 animate-pulse">
-                        <span className="block font-bold text-white text-sm">Solving...</span>
-                        <span className="block text-xs text-indigo-300 truncate">Analyzing Pixels</span>
-                    </div>
-                 </>
-             ) : visualError ? (
-                <div className="flex items-center gap-2 text-red-300 w-full justify-center">
-                    <AlertCircle className="w-5 h-5 flex-shrink-0" />
-                    <div className="text-left">
-                        <span className="block font-bold text-sm">Failed</span>
-                        <span className="block text-[10px] opacity-80">Tap to Retry</span>
-                    </div>
-                </div>
-             ) : visualSolutionUrl ? (
-                 <div className="flex items-center gap-2">
-                     <div className="p-2 bg-indigo-500 rounded-full flex-shrink-0">
-                     <ImageIcon className="w-4 h-4 text-white" />
-                     </div>
-                     <div className="text-left min-w-0">
-                     <span className="block font-bold text-white text-sm">Solved</span>
-                     <span className="block text-xs text-gray-400 truncate">Image Overlay</span>
-                     </div>
+        {/* Error Message Display */}
+        {visualError && (
+            <div className="mt-3 text-xs text-red-400 bg-red-900/10 border border-red-900/20 p-2 rounded flex items-center justify-center gap-2">
+                <AlertCircle className="w-3 h-3" />
+                {visualError}
+            </div>
+        )}
+
+        {/* Visual Solution Area */}
+        {visualSolutionUrl && (
+            <div className="mt-6 rounded-xl overflow-hidden border border-white/20 shadow-2xl animate-slideUp bg-black/40 group relative">
+                 <div className="flex justify-between items-center p-3 bg-white/5 border-b border-white/10">
+                   <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider">Visual Solution Card</h4>
+                   <div className="flex gap-2">
+                     <button 
+                       onClick={() => setShowFullImage(true)}
+                       className="p-1.5 bg-white/5 hover:bg-white/10 rounded-lg text-gray-300 transition-colors"
+                       title="View Fullscreen"
+                     >
+                       <Maximize2 className="w-4 h-4" />
+                     </button>
+                     <button 
+                       onClick={handleDownloadVisual}
+                       className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-lg transition-colors"
+                     >
+                       <Download className="w-3 h-3" /> Save
+                     </button>
+                   </div>
                  </div>
-             ) : (
-                 <>
-                 <div className="p-2 bg-indigo-500 rounded-full group-hover:scale-110 transition-transform flex-shrink-0">
-                     <PenTool className="w-4 h-4 text-white" />
-                 </div>
-                 <div className="text-left min-w-0">
-                     <span className="block font-bold text-white text-sm">Solve</span>
-                     <span className="block text-xs text-gray-400 truncate">On Image</span>
-                 </div>
-                 </>
-             )}
-             </button>
-         )}
+                <img 
+                    src={visualSolutionUrl} 
+                    alt="Solved Problem" 
+                    className="w-full h-auto object-contain max-h-[500px]"
+                />
+            </div>
+        )}
       </div>
 
-      {/* Error Message Display */}
-      {visualError && (
-          <div className="mt-3 text-xs text-red-400 bg-red-900/10 border border-red-900/20 p-2 rounded flex items-center justify-center gap-2">
-              <AlertCircle className="w-3 h-3" />
-              {visualError}
+      {/* Fullscreen Image Modal */}
+      {showFullImage && visualSolutionUrl && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/95 backdrop-blur-xl p-4 animate-fadeIn">
+          <div className="relative w-full h-full max-w-7xl max-h-screen flex flex-col">
+            <div className="absolute top-4 right-4 z-10 flex gap-4">
+               <button 
+                 onClick={handleDownloadVisual}
+                 className="p-3 bg-blue-600 rounded-full text-white shadow-lg hover:bg-blue-500 transition-transform hover:scale-105"
+                 title="Download"
+               >
+                 <Download className="w-6 h-6" />
+               </button>
+               <button 
+                 onClick={() => setShowFullImage(false)}
+                 className="p-3 bg-white/10 rounded-full text-white shadow-lg hover:bg-white/20 transition-transform hover:scale-105"
+               >
+                 <X className="w-6 h-6" />
+               </button>
+            </div>
+            <img 
+              src={visualSolutionUrl} 
+              alt="Full Visual Solution" 
+              className="w-full h-full object-contain"
+            />
           </div>
+        </div>
       )}
-
-      {/* Visual Solution Area */}
-      {visualSolutionUrl && (
-          <div className="mt-6 rounded-xl overflow-hidden border border-white/20 shadow-2xl animate-slideUp bg-black/40">
-               <div className="flex justify-between items-center p-3 bg-white/5 border-b border-white/10">
-                 <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider">Visual Solution Overlay</h4>
-                 <button 
-                   onClick={handleDownloadVisual}
-                   className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-lg transition-colors"
-                 >
-                   <Download className="w-3 h-3" /> Download Image
-                 </button>
-               </div>
-              <img 
-                  src={visualSolutionUrl} 
-                  alt="Solved Problem" 
-                  className="w-full h-auto object-contain"
-              />
-          </div>
-      )}
-    </div>
+    </>
   );
 };
 

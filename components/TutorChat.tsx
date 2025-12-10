@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, MessageSquare, Bot, User, Loader2 } from 'lucide-react';
+import { Send, MessageSquare, Bot, User, Loader2, Mic, MicOff } from 'lucide-react';
 import { DoubtSolverResponse } from '../types';
 import { createTutorChat } from '../services/geminiService';
 import MathMarkdown from './MathMarkdown';
@@ -7,6 +8,7 @@ import { Chat, GenerateContentResponse } from '@google/genai';
 
 interface TutorChatProps {
   data: DoubtSolverResponse;
+  initialMessage?: string; // Allow external triggering
 }
 
 interface Message {
@@ -14,15 +16,18 @@ interface Message {
   text: string;
 }
 
-const TutorChat: React.FC<TutorChatProps> = ({ data }) => {
+const TutorChat: React.FC<TutorChatProps> = ({ data, initialMessage }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [chatSession, setChatSession] = useState<Chat | null>(null);
+  const [isListening, setIsListening] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Voice Recognition Ref
+  const recognitionRef = useRef<any>(null);
+
   useEffect(() => {
-    // Initialize chat session with problem context
     try {
       const chat = createTutorChat({
         question: data.question_understanding.clean_question,
@@ -36,23 +41,65 @@ const TutorChat: React.FC<TutorChatProps> = ({ data }) => {
     }
   }, [data]);
 
+  // Handle Initial Message Trigger (from Step Explanation)
+  useEffect(() => {
+    if (initialMessage && chatSession) {
+      handleSend(initialMessage);
+    }
+  }, [initialMessage, chatSession]);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const handleSend = async () => {
-    if (!input.trim() || !chatSession) return;
+  // Voice Logic
+  useEffect(() => {
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.continuous = false;
+      recognitionRef.current.interimResults = false;
+      recognitionRef.current.lang = 'en-US';
 
-    const userMsg = input;
-    setInput('');
-    setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
+      recognitionRef.current.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        setInput(prev => prev + " " + transcript);
+        setIsListening(false);
+      };
+
+      recognitionRef.current.onerror = () => setIsListening(false);
+      recognitionRef.current.onend = () => setIsListening(false);
+    }
+  }, []);
+
+  const toggleListening = () => {
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+    } else {
+      if (recognitionRef.current) {
+        setIsListening(true);
+        recognitionRef.current.start();
+      } else {
+        alert("Speech recognition not supported in this browser.");
+      }
+    }
+  };
+
+  const handleSend = async (msgOverride?: string) => {
+    const textToSend = msgOverride || input;
+    if (!textToSend.trim() || !chatSession) return;
+
+    if (!msgOverride) setInput('');
+    
+    setMessages(prev => [...prev, { role: 'user', text: textToSend }]);
     setIsLoading(true);
 
     try {
-      const result = await chatSession.sendMessageStream({ message: userMsg });
+      const result = await chatSession.sendMessageStream({ message: textToSend });
       
       let fullText = '';
-      setMessages(prev => [...prev, { role: 'model', text: '' }]); // Placeholder
+      setMessages(prev => [...prev, { role: 'model', text: '' }]);
 
       for await (const chunk of result) {
         const c = chunk as GenerateContentResponse;
@@ -85,6 +132,7 @@ const TutorChat: React.FC<TutorChatProps> = ({ data }) => {
       <div className="p-4 border-b border-white/10 flex items-center gap-2">
         <MessageSquare className="w-5 h-5 text-blue-400" />
         <h3 className="font-bold text-white">AI Tutor Chat</h3>
+        {isListening && <span className="text-red-400 text-xs animate-pulse ml-auto">Listening...</span>}
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-white/20">
@@ -103,17 +151,24 @@ const TutorChat: React.FC<TutorChatProps> = ({ data }) => {
 
       <div className="p-4 border-t border-white/10 bg-black/20">
         <div className="flex gap-2">
+          <button
+            onClick={toggleListening}
+            className={`p-2 rounded-lg transition-colors ${isListening ? 'bg-red-500/20 text-red-400' : 'bg-white/5 text-gray-400 hover:text-white'}`}
+            title="Voice Input"
+          >
+            {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+          </button>
           <input
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyPress}
-            placeholder="Ask a follow-up question..."
+            placeholder="Ask a follow-up..."
             disabled={isLoading}
             className="flex-1 bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500/50"
           />
           <button
-            onClick={handleSend}
+            onClick={() => handleSend()}
             disabled={isLoading || !input.trim()}
             className="bg-blue-600 hover:bg-blue-500 text-white p-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >

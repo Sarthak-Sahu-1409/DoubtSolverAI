@@ -1,16 +1,27 @@
+
 import React, { useState } from 'react';
-import { CheckCircle2, AlertTriangle, Lightbulb, ChevronDown, ChevronRight, Calculator, BookOpen } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, Lightbulb, ChevronDown, ChevronRight, Calculator, BookOpen, GitBranch, MessageCircle } from 'lucide-react';
 import { DoubtSolverResponse, SolverMode } from '../types';
 import MathMarkdown from './MathMarkdown';
 
 interface SolutionCardProps {
   data: DoubtSolverResponse;
   mode: SolverMode;
+  onExplainStep: (text: string) => void; // Callback to trigger chat
 }
 
-const SolutionCard: React.FC<SolutionCardProps> = ({ data, mode }) => {
+const SolutionCard: React.FC<SolutionCardProps> = ({ data, mode, onExplainStep }) => {
   const [hintIndex, setHintIndex] = useState(0);
   const [showExamSteps, setShowExamSteps] = useState(false);
+  const [activeMethodIndex, setActiveMethodIndex] = useState(0); // 0 = main, 1+ = alternatives
+
+  // Combine main solution with alternatives for unified rendering logic
+  const methods = [
+    { method_name: 'Primary Method', steps: data.step_by_step_solution },
+    ...(data.alternative_methods || [])
+  ];
+
+  const currentSteps = methods[activeMethodIndex]?.steps || [];
 
   // --- HINT MODE ---
   if (mode === 'hint') {
@@ -139,7 +150,7 @@ const SolutionCard: React.FC<SolutionCardProps> = ({ data, mode }) => {
   // --- LEARNING MODE (Default) ---
   return (
     <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl p-6 transition-colors">
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-bold text-white flex items-center gap-2">
            <Calculator className="w-5 h-5 text-blue-400" /> Step-by-Step Solution
         </h2>
@@ -150,25 +161,56 @@ const SolutionCard: React.FC<SolutionCardProps> = ({ data, mode }) => {
         )}
       </div>
 
+      {/* Multiple Approaches Tabs */}
+      {methods.length > 1 && (
+        <div className="flex flex-wrap gap-2 mb-6 border-b border-white/10 pb-2">
+          {methods.map((m, i) => (
+            <button
+              key={i}
+              onClick={() => setActiveMethodIndex(i)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-t-lg text-sm font-bold transition-all ${
+                activeMethodIndex === i 
+                  ? 'bg-blue-600/20 text-blue-400 border-b-2 border-blue-400' 
+                  : 'text-gray-400 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              <GitBranch className="w-3 h-3" />
+              {m.method_name || `Method ${i + 1}`}
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="space-y-8 relative before:absolute before:left-[15px] before:top-4 before:bottom-4 before:w-0.5 before:bg-white/10">
-        {data.step_by_step_solution.map((step, idx) => (
+        {currentSteps.map((step, idx) => (
           <div key={idx} className="relative flex gap-5 animate-fadeIn" style={{ animationDelay: `${idx * 100}ms` }}>
             <div className="flex-shrink-0 w-8 h-8 rounded-full bg-black border-2 border-blue-500 text-blue-400 flex items-center justify-center font-bold text-sm z-10 shadow-lg shadow-blue-900/50 print:bg-white print:border-black print:text-black">
               {step.step_number || idx + 1}
             </div>
-            <div className="flex-grow pt-1 min-w-0">
+            <div className="flex-grow pt-1 min-w-0 group">
                {step.title && <h4 className="font-bold text-white mb-2 text-lg tracking-tight print:text-black">{step.title}</h4>}
                <div className="bg-white/5 p-5 rounded-xl border border-white/5 hover:bg-white/10 transition-colors print:bg-transparent print:border-gray-200">
                  <MathMarkdown text={step.content} className="text-gray-100" />
-                 {step.concepts_applied && step.concepts_applied.length > 0 && (
-                   <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-white/10">
-                     {step.concepts_applied.map((concept, cIdx) => (
-                       <span key={cIdx} className="text-[10px] uppercase font-bold text-purple-300 bg-purple-500/20 px-2 py-1 rounded border border-purple-500/20 print:text-black print:bg-transparent print:border-black">
-                         {concept}
-                       </span>
-                     ))}
-                   </div>
-                 )}
+                 
+                 <div className="flex justify-between items-center mt-4 pt-4 border-t border-white/10">
+                   {step.concepts_applied && step.concepts_applied.length > 0 ? (
+                     <div className="flex flex-wrap gap-2">
+                       {step.concepts_applied.map((concept, cIdx) => (
+                         <span key={cIdx} className="text-[10px] uppercase font-bold text-purple-300 bg-purple-500/20 px-2 py-1 rounded border border-purple-500/20 print:text-black print:bg-transparent print:border-black">
+                           {concept}
+                         </span>
+                       ))}
+                     </div>
+                   ) : <div></div>}
+                   
+                   {/* Interactive Explanation Button */}
+                   <button 
+                     onClick={() => onExplainStep(`Explain step ${step.step_number} (${step.title}) in more detail.`)}
+                     className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 text-[10px] bg-blue-600/20 hover:bg-blue-600/40 text-blue-300 px-3 py-1.5 rounded-full border border-blue-500/30 no-print"
+                   >
+                     <MessageCircle className="w-3 h-3" /> Explain this step
+                   </button>
+                 </div>
                </div>
             </div>
           </div>

@@ -83,7 +83,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, mode, originalImage }) => {
   return (
     <div className="w-full space-y-6">
       {/* Top Stats Row */}
-      <div className="flex flex-wrap gap-4 justify-end no-print">
+      <div className="flex flex-wrap gap-4 justify-end no-print min-h-[40px]">
          <button 
            onClick={() => setShowCheckWork(!showCheckWork)}
            className="flex items-center gap-2 px-4 py-2 bg-green-600/20 hover:bg-green-600/30 border border-green-500/30 text-green-400 rounded-lg text-sm font-bold transition-colors"
@@ -140,39 +140,45 @@ const Dashboard: React.FC<DashboardProps> = ({ data, mode, originalImage }) => {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         {/* Difficulty */}
         <div className="bg-white/5 backdrop-blur-md border border-white/10 p-4 rounded-xl shadow-lg flex items-center gap-4">
-           <div className="p-3 bg-blue-500/20 text-blue-400 rounded-lg"><BarChart className="w-6 h-6" /></div>
-           <div>
+           <div className="p-3 bg-blue-500/20 text-blue-400 rounded-lg flex-shrink-0"><BarChart className="w-6 h-6" /></div>
+           <div className="min-w-0">
              <p className="text-xs text-blue-200/60 font-medium uppercase tracking-wider">Difficulty</p>
-             <p className="font-bold text-white capitalize">{data.difficulty.level.replace('_', ' ')}</p>
+             <p className="font-bold text-white capitalize truncate">{data.difficulty.level.replace('_', ' ')}</p>
            </div>
         </div>
         {/* Est Time */}
         <div className="bg-white/5 backdrop-blur-md border border-white/10 p-4 rounded-xl shadow-lg flex items-center gap-4">
-           <div className="p-3 bg-purple-500/20 text-purple-400 rounded-lg"><Clock className="w-6 h-6" /></div>
-           <div>
+           <div className="p-3 bg-purple-500/20 text-purple-400 rounded-lg flex-shrink-0"><Clock className="w-6 h-6" /></div>
+           <div className="min-w-0">
              <p className="text-xs text-purple-200/60 font-medium uppercase tracking-wider">Est. Time</p>
-             <p className="font-bold text-white">{data.difficulty.estimated_student_time_minutes} mins</p>
+             <p className="font-bold text-white truncate">{data.difficulty.estimated_student_time_minutes} mins</p>
            </div>
         </div>
         {/* Confidence */}
         <div className="bg-white/5 backdrop-blur-md border border-white/10 p-4 rounded-xl shadow-lg flex items-center gap-4">
-           <div className="w-16 h-16 relative">
-               <ResponsiveContainer width="100%" height="100%">
-                 <PieChart>
-                   <Pie data={confidenceData} innerRadius={18} outerRadius={28} dataKey="value" stroke="none" startAngle={90} endAngle={-270}>
-                     {confidenceData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
-                   </Pie>
-                 </PieChart>
-               </ResponsiveContainer>
+           <div className="w-16 h-16 relative flex-shrink-0">
+               {/* Explicit size for Recharts container to prevent resizing loop */}
+               <div className="w-16 h-16">
+                 <ResponsiveContainer width="100%" height="100%">
+                   <PieChart>
+                     <Pie data={confidenceData} innerRadius={18} outerRadius={28} dataKey="value" stroke="none" startAngle={90} endAngle={-270}>
+                       {confidenceData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                     </Pie>
+                   </PieChart>
+                 </ResponsiveContainer>
+               </div>
              <div className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-white">
                {Math.round(data.difficulty.confidence_score)}%
              </div>
            </div>
-           <div><p className="text-xs text-blue-200/60 font-medium uppercase tracking-wider">Confidence</p><p className="text-xs text-white/80">AI Certainty</p></div>
+           <div className="min-w-0">
+             <p className="text-xs text-blue-200/60 font-medium uppercase tracking-wider">Confidence</p>
+             <p className="text-xs text-white/80 truncate">AI Certainty</p>
+           </div>
         </div>
         {/* Subject */}
         <div className="bg-white/5 backdrop-blur-md border border-white/10 p-4 rounded-xl shadow-lg flex items-center gap-4">
-           <div className="p-3 bg-amber-500/20 text-amber-400 rounded-lg"><Zap className="w-6 h-6" /></div>
+           <div className="p-3 bg-amber-500/20 text-amber-400 rounded-lg flex-shrink-0"><Zap className="w-6 h-6" /></div>
            <div className="min-w-0">
              <p className="text-xs text-amber-200/60 font-medium uppercase tracking-wider">Subject</p>
              <p className="font-bold text-white truncate">{data.question_understanding.detected_subject}</p>
@@ -208,8 +214,8 @@ const Dashboard: React.FC<DashboardProps> = ({ data, mode, originalImage }) => {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className={`${isFullWidthMode ? 'lg:col-span-3' : 'lg:col-span-2'} space-y-6`}>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 relative">
+        <div className={`${isFullWidthMode ? 'lg:col-span-3' : 'lg:col-span-2'} space-y-6 min-w-0`}>
           {!isFullWidthMode && <MediaPanel data={data} originalImage={originalImage} />}
           <SolutionCard data={data} mode={mode} onExplainStep={(txt) => setChatTrigger(txt)} />
           
@@ -234,7 +240,8 @@ const Dashboard: React.FC<DashboardProps> = ({ data, mode, originalImage }) => {
         </div>
 
         {!isFullWidthMode && (
-          <div className="lg:col-span-1 space-y-6 sticky top-6">
+          // Sticky Sidebar Container for Desktop
+          <div className="lg:col-span-1 space-y-6 lg:space-y-4 lg:sticky lg:top-24 lg:h-[calc(100vh-7rem)] lg:flex lg:flex-col lg:overflow-hidden z-20">
             <TutorChat data={data} initialMessage={chatTrigger} />
             <ToolsPanel data={data} mode={mode} />
           </div>

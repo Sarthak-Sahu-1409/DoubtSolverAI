@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { BookOpen, Layers, UserCheck } from 'lucide-react';
 import { DoubtSolverResponse, SolverMode } from '../types';
@@ -124,8 +125,8 @@ const ToolsPanel: React.FC<ToolsPanelProps> = ({ data, mode }) => {
   };
 
   return (
-    <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl overflow-hidden flex flex-col h-full transition-colors sticky top-6">
-      <div className="flex border-b border-white/10 no-print">
+    <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl overflow-hidden flex flex-col h-[600px] lg:h-auto lg:flex-1 lg:min-h-[400px] transition-colors">
+      <div className="flex border-b border-white/10 no-print flex-shrink-0">
         {showTheory && (
           <button 
             onClick={() => setActiveTab('theory')}
@@ -152,7 +153,7 @@ const ToolsPanel: React.FC<ToolsPanelProps> = ({ data, mode }) => {
         )}
       </div>
       
-      <div className="p-6 overflow-y-auto max-h-[600px] scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
+      <div className="p-6 overflow-y-auto flex-1 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
         {renderTabContent()}
       </div>
     </div>

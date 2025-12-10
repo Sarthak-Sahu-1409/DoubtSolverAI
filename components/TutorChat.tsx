@@ -128,8 +128,8 @@ const TutorChat: React.FC<TutorChatProps> = ({ data, initialMessage }) => {
   };
 
   return (
-    <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl shadow-xl flex flex-col h-[500px]">
-      <div className="p-4 border-b border-white/10 flex items-center gap-2">
+    <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-xl shadow-xl flex flex-col h-[400px] lg:h-[40%] lg:flex-shrink-0 lg:min-h-[300px] transition-all">
+      <div className="p-4 border-b border-white/10 flex items-center gap-2 flex-shrink-0">
         <MessageSquare className="w-5 h-5 text-blue-400" />
         <h3 className="font-bold text-white">AI Tutor Chat</h3>
         {isListening && <span className="text-red-400 text-xs animate-pulse ml-auto">Listening...</span>}
@@ -149,7 +149,7 @@ const TutorChat: React.FC<TutorChatProps> = ({ data, initialMessage }) => {
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="p-4 border-t border-white/10 bg-black/20">
+      <div className="p-4 border-t border-white/10 bg-black/20 flex-shrink-0">
         <div className="flex gap-2">
           <button
             onClick={toggleListening}
